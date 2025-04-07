@@ -16,6 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 # from .populate import initiate
 from .models import CarMake, CarModel
 from .restapis import get_request, analyze_review_sentiments, post_review
+from .populate import initiate
 # Get an instance of a logger
 logger = logging.getLogger(__name__)
 
@@ -81,20 +82,21 @@ def registration(request):
 
 def get_cars(request):
     count = CarMake.objects.filter().count()
-    print(count)
     if(count == 0):
-        initiate()
+        initiate()  # Call initiate() to populate data if the count is zero
     car_models = CarModel.objects.select_related('car_make')
     cars = []
     for car_model in car_models:
         cars.append({"CarModel": car_model.name, "CarMake": car_model.car_make.name})
-    return JsonResponse({"CarModels":cars})
+    return JsonResponse({"CarModels": cars})
 # # Update the `get_dealerships` view to render the index page with
 # a list of dealerships
 # def get_dealerships(request):
 # ...
 #Update the `get_dealerships` render list of dealerships all by default, particular state if state is passed
+@csrf_exempt
 def get_dealerships(request, state="All"):
+
     if(state == "All"):
         endpoint = "/fetchDealers"
     else:
@@ -130,13 +132,17 @@ def get_dealer_details(request, dealer_id):
 # Create a `add_review` view to submit a review
 # def add_review(request):
 # ...
-def add_review(request):
-    if(request.user.is_anonymous == False):
-        data = json.loads(request.body)
-        try:
-            response = post_review(data)
-            return JsonResponse({"status":200})
-        except:
-            return JsonResponse({"status":401,"message":"Error in posting review"})
+def add_review(request, dealer_id):
+    if request.user.is_anonymous == False:
+        if request.method == "POST":
+            data = json.loads(request.body)
+            try:
+                response = post_review(data)
+                return JsonResponse({"status": 200})
+            except:
+                return JsonResponse({"status": 401, "message": "Error in posting review"})
+        else:
+            return JsonResponse({"status": 405, "message": "Method Not Allowed"})
     else:
-        return JsonResponse({"status":403,"message":"Unauthorized"})
+        return JsonResponse({"status": 403, "message": "Unauthorized"})
+
